@@ -37,6 +37,7 @@ class CaseSerializationTests(unittest.TestCase):
             applicability="applicable",
             status="Erfüllt",
             evidence=["Doku/PPWR.pdf"],
+            exceptions=["Einzelfallprüfung"],
         )]
 
         loaded = case_from_json(case_to_json(case))
@@ -44,9 +45,10 @@ class CaseSerializationTests(unittest.TestCase):
         self.assertEqual(loaded.company.reuse_systems[0].name, "Pool")
         self.assertTrue(loaded.company.packaging_units[0].intended_for_reuse)
         self.assertTrue(loaded.company.packaging_units[0].components[0].food_contact)
-        self.assertEqual(loaded.schema_version, "0.9.0")
+        self.assertEqual(loaded.schema_version, "0.8.2")
         self.assertEqual(loaded.obligation_records[0].status, "Erfüllt")
         self.assertEqual(loaded.obligation_records[0].evidence, ["Doku/PPWR.pdf"])
+        self.assertEqual(loaded.obligation_records[0].exceptions, ["Einzelfallprüfung"])
 
     def test_legacy_direct_json_fills_new_fields_with_defaults(self):
         legacy = {
@@ -62,7 +64,7 @@ class CaseSerializationTests(unittest.TestCase):
         }
         loaded = case_from_json(json.dumps(legacy))
         ve = loaded.company.packaging_units[0]
-        self.assertEqual(loaded.schema_version, "0.9.0")
+        self.assertEqual(loaded.schema_version, "0.8.2")
         self.assertFalse(ve.intended_for_reuse)
         self.assertFalse(ve.components[0].food_contact)
         self.assertEqual(ve.compostable_format, "no")
@@ -79,7 +81,7 @@ class CaseSerializationTests(unittest.TestCase):
             },
         }
         loaded = case_from_json(json.dumps(old_export))
-        self.assertEqual(loaded.schema_version, "0.9.0")
+        self.assertEqual(loaded.schema_version, "0.8.2")
         self.assertEqual(loaded.obligation_records, [])
 
     def test_invalid_case_is_rejected_with_actionable_message(self):

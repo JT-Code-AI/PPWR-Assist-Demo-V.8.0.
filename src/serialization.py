@@ -16,7 +16,7 @@ from src.models import (
 
 
 FORMAT_ID = "ppwr-assist-case"
-CURRENT_SCHEMA = "0.9.0"
+CURRENT_SCHEMA = "0.8.2"
 
 
 def _construct(model, data):

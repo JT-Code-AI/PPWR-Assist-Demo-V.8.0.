@@ -111,6 +111,7 @@ class ObligationDefinition:
     legal_basis: list[str] = field(default_factory=list)
     interpretation_basis: list[str] = field(default_factory=list)
     requirement_text: str = ""
+    exceptions: list[str] = field(default_factory=list)
     applicable_from: Optional[str] = None
     depends_on_act: bool = False
     time_rule: str = ""
@@ -130,6 +131,7 @@ class ObligationAssessment:
     applicability: str = "clarification_required"
     status: str = "Klärung erforderlich"
     requirement_text: str = ""
+    exceptions: list[str] = field(default_factory=list)
     country: str = ""
     applicable_from: Optional[str] = None
     depends_on_act: bool = False
@@ -323,7 +325,7 @@ class ReuseSystem:
 class AssessmentCase:
     case_id: str
 
-    schema_version: str = "0.9.0"
+    schema_version: str = "0.8.2"
     ruleset_version: str = "development"
 
     created_at: date = field(

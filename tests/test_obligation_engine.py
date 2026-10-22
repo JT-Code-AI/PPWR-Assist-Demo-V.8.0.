@@ -10,6 +10,7 @@ from src.models import (
     RoleAssessment,
 )
 from src.obligation_engine import build_register
+from src.documentation_register import build_documentation_register
 
 
 class ObligationEngineTests(unittest.TestCase):
@@ -94,6 +95,33 @@ class ObligationEngineTests(unittest.TestCase):
         self.assertEqual(duty.applicability, "future")
         self.assertTrue(duty.depends_on_act)
         self.assertIn("drei Jahre", duty.time_rule)
+
+    def test_future_duties_are_routed_to_outlook_and_docs_are_triggered(self):
+        from src.models import PackagingComponent
+
+        ve = self.case.company.packaging_units[0]
+        ve.packaging_type_candidates = ["transport"]
+        ve.self_filling_sales_grouped = "yes"
+        ve.components = [PackagingComponent("PKG-1", food_contact=True)]
+        roles = [RoleAssessment(
+            role_key="producer", title="Erzeuger", status="yes", scope="VE-1"
+        )]
+        register = build_register(self.case, roles)
+        docs, future = build_documentation_register(register)
+
+        future_ids = {item.obligation_id for item in future}
+        self.assertIn("PPWR_ART24_1_VOIDSPACE_50_PERCENT", future_ids)
+        doc_titles = {item["title"] for item in docs}
+        self.assertIn("Technische Dokumentation nach Anhang VII", doc_titles)
+        self.assertIn("PFAS-Nachweis nach Art. 5 Abs. 5", doc_titles)
+
+        ve.components = [PackagingComponent("PKG-1", food_contact=False)]
+        register = build_register(self.case, roles)
+        docs, _ = build_documentation_register(register)
+        self.assertNotIn(
+            "PFAS-Nachweis nach Art. 5 Abs. 5",
+            {item["title"] for item in docs},
+        )
 
 
 if __name__ == "__main__":

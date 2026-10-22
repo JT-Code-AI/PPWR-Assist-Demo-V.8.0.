@@ -35,6 +35,7 @@ ROLE_DEFINITIONS = {
             "Kennzeichnung, Rückverfolgbarkeit und Korrekturmaßnahmen, sind ebenfalls "
             "zu bearbeiten."
         ),
+        exceptions=["Die EU-Konformitätserklärung wird erst nach nachgewiesener Konformität ausgestellt."],
     ),
     "importer": ObligationDefinition(
         obligation_id="PPWR_ART18_IMPORTER_OBLIGATIONS",
@@ -52,6 +53,7 @@ ROLE_DEFINITIONS = {
             "Konformitätserklärung und technische Unterlagen für die vorgeschriebene "
             "Aufbewahrungsfrist bereithalten."
         ),
+        exceptions=["Bei begründeten Zweifeln oder Nichtkonformität gelten die in Art. 18 geregelten Folgemaßnahmen; Einzelfallprüfung erforderlich."],
     ),
     "distributor": ObligationDefinition(
         obligation_id="PPWR_ART19_DISTRIBUTOR_OBLIGATIONS",
@@ -68,6 +70,7 @@ ROLE_DEFINITIONS = {
             "begründeten Konformitätszweifeln die Verpackung nicht bereitstellen, bis "
             "der Sachverhalt geklärt oder die Konformität hergestellt ist."
         ),
+        exceptions=["Bei begründeten Konformitätszweifeln darf die Verpackung bis zur Klärung oder Herstellung der Konformität nicht bereitgestellt werden."],
     ),
 }
 
@@ -98,6 +101,9 @@ def _merge(target: dict, item: ObligationAssessment) -> None:
     for note in item.rule_notes:
         if note not in current.rule_notes:
             current.rule_notes.append(note)
+    for exception in item.exceptions:
+        if exception not in current.exceptions:
+            current.exceptions.append(exception)
     if item.applicability == "applicable":
         current.applicability = "applicable"
     elif (
@@ -148,11 +154,13 @@ def build_register(
             "upcoming": "future",
             "scheduled_review": "future",
             "review": "clarification_required",
-            "exempt": "clarification_required",
+            "exempt": "not_applicable",
         }.get(old_status, "clarification_required")
-        effective = item.get("effective_date") or RULES_APPLY_FROM.isoformat()
-        depends = old_status == "scheduled_review"
-        if old_status in {"applicable", "upcoming"} and not item.get("effective_date"):
+        effective = item.get("effective_date")
+        depends = bool(item.get("depends_on_act", old_status == "scheduled_review"))
+        if old_status == "scheduled_review":
+            applicability = "future"
+        elif old_status in {"applicable", "upcoming"} and not item.get("effective_date"):
             applicability = _date_applicability(assessment_date)
         missing = (
             list(item.get("notes", [])) or [item.get("summary", "")]
@@ -171,11 +179,12 @@ def build_register(
             applicable_from=effective,
             depends_on_act=depends,
             time_rule=(
-                "01.01.2030 oder drei Jahre nach Inkrafttreten des Durchführungsrechtsakts; maßgeblich ist der spätere Zeitpunkt."
-                if depends else f"PPWR-Anwendung ab {effective}."
+                item.get("time_rule") or "Geltungsbeginn absatzweise anhand des Durchführungs-/delegierten Rechtsakts klären; kein unbekannter Termin wird geschätzt."
+                if depends else (f"PPWR-Anwendung ab {effective}." if effective else "Geltungsbeginn in der übergebenen Spezifikation nicht festgelegt." )
             ),
             missing_facts=missing,
             rule_notes=list(item.get("notes", [])),
+            exceptions=list(item.get("exceptions", [])),
         )
         _merge(merged, assessment)
 
@@ -201,6 +210,7 @@ def build_register(
                 applicability=applicability,
                 requirement_text=definition.requirement_text,
                 applicable_from=RULES_APPLY_FROM.isoformat(),
+                exceptions=definition.exceptions.copy(),
                 missing_facts=[result.summary] if status == "clarification_required" else [],
                 notes=("Die Rollenbewertung ist noch nicht abschließend." if status == "clarification_required" else ""),
             ))
@@ -227,6 +237,7 @@ def build_register(
                     ),
                     requirement_text=definition.requirement_text,
                     applicable_from=RULES_APPLY_FROM.isoformat(),
+                    exceptions=definition.exceptions.copy(),
                     missing_facts=(
                         ["Die Kleinstunternehmensregel in Art. 21 Abs. 2 und der Sitz des Verpackungslieferanten sind zu prüfen."]
                         if micro_rule_unresolved else []
@@ -248,6 +259,7 @@ def build_register(
                     applicability="clarification_required",
                     requirement_text=definition.requirement_text,
                     applicable_from=RULES_APPLY_FROM.isoformat(),
+                    exceptions=definition.exceptions.copy(),
                     missing_facts=["Klären, ob Verpackung unter eigenem Namen/eigener Marke bereitgestellt oder so verändert wird, dass die Konformität beeinträchtigt werden kann."],
                 ))
 

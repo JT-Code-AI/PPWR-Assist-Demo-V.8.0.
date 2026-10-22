@@ -1,4 +1,4 @@
-"""Rule-based special-path register for PPWR-Assist v0.9.0.
+"""Rule-based special-path register for PPWR-Assist v0.8.2.
 
 The rule texts and triggers follow the supplied PPWR handover markdown.
 Where that specification leaves a duty's detailed applicability open, the
@@ -56,6 +56,9 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
         trigger_id: str | None,
         effective_date: str | None = None,
         notes: list[str] | None = None,
+        exceptions: list[str] | None = None,
+        depends_on_act: bool = False,
+        time_rule: str = "",
     ) -> None:
         key = (obligation_id, scope_id)
         if key not in items:
@@ -70,6 +73,9 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                 "trigger_ids": [],
                 "effective_date": effective_date,
                 "notes": [],
+                "exceptions": [],
+                "depends_on_act": depends_on_act,
+                "time_rule": time_rule,
             }
         item = items[key]
         if summary != item["summary"]:
@@ -88,6 +94,12 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
         for note in notes or []:
             if note not in item["notes"]:
                 item["notes"].append(note)
+        for exception in exceptions or []:
+            if exception not in item["exceptions"]:
+                item["exceptions"].append(exception)
+        if depends_on_act:
+            item["depends_on_act"] = True
+            item["time_rule"] = time_rule or item["time_rule"]
 
     # HORECA is an enterprise-level trigger: end-recipient delivery + hospitality.
     horeca = (
@@ -106,6 +118,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
             ["PPWR Art. 32"],
             "SPEC_HORECA_REFILL_REUSE",
             end_date.isoformat(),
+            exceptions=["Abweichende Preise oder ungünstigere Bedingungen sind nicht zulässig."],
         )
         art33_date = date(2028, 2, 12)
         art33_status = _dated_status(assessment_date, art33_date)
@@ -126,6 +139,9 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
             ["Kleinstunternehmenstatus ist noch zu klären." ]
             if company.micro_enterprise_status == "clarification_required"
             else [],
+            ["Kleinstunternehmen-Ausnahme nach Art. 33 Abs. 4 prüfen."]
+            if company.micro_enterprise_status in {"yes", "clarification_required"}
+            else [],
         )
         art33_5_date = date(2030, 1, 1)
         art33_5_status = _dated_status(assessment_date, art33_5_date)
@@ -145,6 +161,9 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
             art33_5_date.isoformat(),
             ["Kleinstunternehmenstatus ist noch zu klären." ]
             if company.micro_enterprise_status == "clarification_required"
+            else [],
+            ["Kleinstunternehmen-Ausnahme nach Art. 33 Abs. 4 prüfen."]
+            if company.micro_enterprise_status in {"yes", "clarification_required"}
             else [],
         )
 
@@ -170,6 +189,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                     "PFAS-Konformität nachweisen und die Grenzwerte 25 ppb, 250 ppb und 50 ppm nach PPWR Art. 5 Abs. 5 prüfen; erforderliche Nachweise in der technischen Dokumentation führen.",
                     ["PPWR Art. 5 Abs. 5–6", "Kommissionsleitlinie C/2026/3084, S. 11–12"],
                     "SPEC_PFAS",
+                    exceptions=["Konkrete Anwendungsbedingungen und Ausnahmen nach Art. 5 Abs. 5–6 im Einzelfall prüfen."],
                 )
 
         if ve.intended_for_reuse:
@@ -183,6 +203,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                 ["PPWR Art. 11"],
                 "SPEC_REUSE",
                 notes=["Detaillierte Nachweise werden in dieser Version nicht erhoben."],
+                exceptions=["Die Auswahl ‚vorgesehen‘ bestätigt nicht die Erfüllung der Anforderungen aus Art. 11."],
             )
             if not ve.reuse_system_id:
                 add(
@@ -224,6 +245,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                 ["PPWR Art. 25", "PPWR Anhang V", "PPWR Art. 3 Abs. 1 Nr. 57"],
                 "SPEC_BAG",
                 bag_date.isoformat(),
+                exceptions=["Ausnahmen: notwendige Hygienezwecke oder Verkaufsverpackungen für lose Lebensmittel, wenn dies Lebensmittelverschwendung verhindert."],
             )
 
         if ve.compostable_format in COMPOST_FORMATS:
@@ -320,6 +342,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                 ["PPWR Art. 6–7"],
                 "SPEC_SENSITIVE",
                 notes=[SENSITIVE_CATEGORIES[ve.sensitive_packaging_category]],
+                exceptions=["Nur konkrete gesetzliche Ausnahme je Einzelpflicht prüfen; keine Gesamtbefreiung."],
             )
         elif ve.sensitive_packaging_category == "clarification_required":
             add(
@@ -331,6 +354,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                 "Die Kategorie ist noch nicht geklärt; eine Ausnahme darf nicht pauschal angenommen werden.",
                 ["PPWR Art. 6–7"],
                 "SPEC_SENSITIVE",
+                exceptions=["Keine Ausnahme ohne geklärte Kategorie annehmen."],
             )
 
         if ve.used_for_dangerous_goods:
@@ -343,6 +367,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                 "Tatsächliche Verwendung für Gefahrgut ist erfasst. Es gibt keinen globalen Befreiungsschalter; Ausnahmen sind für jede einschlägige Einzelpflicht gesondert zu prüfen. Eine UN-Zulassung allein löst diesen Pfad nicht aus.",
                 ["PPWR Art. 2 Abs. 2", "PPWR Art. 6", "PPWR Art. 7", "PPWR Art. 29"],
                 "SPEC_DANGEROUS",
+                exceptions=["Nur konkrete Gefahrgutausnahme je Einzelpflicht prüfen; keine Gesamtbefreiung. UN-Zulassung allein genügt nicht."],
             )
 
         # Art. 24: packaging type is taken from the existing classification;
@@ -363,6 +388,9 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                         ["PPWR Art. 24 Abs. 1", "PPWR Art. 24 Abs. 5"],
                         "SPEC_VOIDSPACE",
                         notes=["Der spätere Termin hängt vom Durchführungsrechtsakt ab und wird hier nicht vorweggenommen.", "Ausnahme nach Art. 24 Abs. 5 im Einzelfall prüfen."],
+                        exceptions=["Art. 24 Abs. 5; konkrete Ausnahme im Einzelfall prüfen."],
+                        depends_on_act=True,
+                        time_rule="01.01.2030 oder drei Jahre nach Inkrafttreten des Durchführungsrechtsakts; maßgeblich ist der spätere Zeitpunkt.",
                     )
                 if "sales" in types:
                     sales_date = date(2028, 2, 12)
@@ -377,6 +405,7 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                         "SPEC_VOIDSPACE",
                         sales_date.isoformat(),
                         ["Ausnahme nach Art. 24 Abs. 5 im Einzelfall prüfen."],
+                        ["Art. 24 Abs. 5; konkrete Ausnahme im Einzelfall prüfen."],
                     )
             else:
                 add(
@@ -417,17 +446,20 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
             if ve.is_beverage_packaging:
                 art29_triggers.append("SPEC_BEVERAGE")
             if not art29_triggers:
-                art29_triggers = [None]
+                art29_triggers = ["RULE_ART29_PACKAGING_FORMAT"]
             for trigger_id in art29_triggers:
                 add(
                     "PPWR_ART29_REUSE_REQUIREMENTS_REVIEW",
                     scope,
                     label,
                     "Mehrwegvorgaben nach Art. 29 absatzweise prüfen",
-                    "review",
+                    "scheduled_review",
                     "Art. 29 Abs. 1–19 ist anhand von Verpackungsformat, Marktfluss und Absatz zu prüfen. Umverpackungen sind zusätzlich für Abs. 5 zu berücksichtigen; Getränke-Verkaufsverpackungen für Abs. 6 ff.",
                     ["PPWR Art. 29 Abs. 1–19"],
                     trigger_id,
+                    exceptions=["Individuell gestaltete Verpackungen für große Maschinen, Ausrüstung oder Rohstoffe: mögliche Ausnahme ausschließlich nach Art. 29 Abs. 1–3 prüfen; keine allgemeine PPWR-Befreiung."],
+                    depends_on_act=True,
+                    time_rule="Geltungsbeginn absatzweise prüfen; ein unbekannter Termin wird nicht geschätzt.",
                 )
             if ve.individually_designed_large_goods:
                 add(
@@ -435,10 +467,13 @@ def build_obligations(case: Any) -> list[dict[str, Any]]:
                     scope,
                     label,
                     "Individuelle Gestaltung für große Maschinen/Ausrüstung/Rohstoffe nachweisen",
-                    "review",
+                    "scheduled_review",
                     "Die Ausnahme ist nur für Art. 29 Abs. 1–3 zu prüfen. Die Auswahl bewirkt keine allgemeine PPWR-Befreiung; der Nachweis der individuellen Gestaltung ist zu berücksichtigen.",
                     ["PPWR Art. 29 Abs. 1–3"],
-                    None,
+                    "VE_INDIVIDUALLY_DESIGNED_LARGE_GOODS",
+                    exceptions=["Nur Art. 29 Abs. 1–3; Nachweis der individuellen Gestaltung berücksichtigen. Keine allgemeine PPWR-Befreiung."],
+                    depends_on_act=True,
+                    time_rule="Geltungsbeginn absatzweise prüfen; ein unbekannter Termin wird nicht geschätzt.",
                 )
 
     return sorted(items.values(), key=lambda item: (item["scope_label"], item["obligation_id"]))

@@ -10,6 +10,7 @@ from src.models import (
 )
 from src.serialization import case_from_json, case_to_json
 from src.obligation_engine import build_register, WORK_STATUSES
+from src.documentation_register import build_documentation_register
 from src.models import ObligationAssessment
 
 
@@ -689,7 +690,7 @@ ensure_ve_fields()
 ensure_pkg_fields()
 ensure_flow_fields()
 
-case.schema_version = "0.9.0"
+case.schema_version = "0.8.2"
 
 
 if "selected_object" not in st.session_state:
@@ -3122,7 +3123,7 @@ def render_roles(ve):
     )
 
     st.info(
-        "v0.9.0 ergänzt eine erste Sonderpfad- und "
+        "v0.8.2 ergänzt die strukturierte Pflichtenverarbeitung und "
         "Pflichtenübersicht. Die Anzeige ist keine "
         "vollständige Pflichtenbewertung; offene "
         "Tatbestände und Ausnahmen werden als "
@@ -3371,6 +3372,8 @@ def render_obligation_list(obligations, heading, editable=False):
                 st.warning("Offene Tatsachen: " + "; ".join(item.missing_facts))
             if item.rule_notes:
                 st.info("Regelhinweise: " + "; ".join(item.rule_notes))
+            if item.exceptions:
+                st.caption("Ausnahmen / Abgrenzungen: " + "; ".join(item.exceptions))
             if item.notes:
                 st.caption("Notiz: " + item.notes)
             if item.time_rule:
@@ -3414,7 +3417,7 @@ def render_special_path_inputs(ve):
     ve.intended_for_reuse = st.checkbox(
         "Zur Wiederverwendung / Mehrweg vorgesehen",
         value=ve.intended_for_reuse,
-        key=f"intended_for_reuse_{ve.ve_id}_v090",
+        key=f"intended_for_reuse_{ve.ve_id}_v082",
     )
 
     if ve.intended_for_reuse:
@@ -3430,7 +3433,7 @@ def render_special_path_inputs(ve):
             format_func=lambda value: "Kein System zugeordnet"
             if value == ""
             else labels.get(value, value),
-            key=f"reuse_system_link_{ve.ve_id}_v090",
+            key=f"reuse_system_link_{ve.ve_id}_v082",
         )
         ve.reuse_system_id = selected or None
         if not systems:
@@ -3441,7 +3444,7 @@ def render_special_path_inputs(ve):
     ve.is_plastic_carrier_bag = st.checkbox(
         "Kunststofftragetasche",
         value=ve.is_plastic_carrier_bag,
-        key=f"plastic_bag_{ve.ve_id}_v090",
+        key=f"plastic_bag_{ve.ve_id}_v082",
     )
 
     compost_options = [
@@ -3467,13 +3470,13 @@ def render_special_path_inputs(ve):
             ve.compostable_format if ve.compostable_format in compost_options else "no"
         ),
         format_func=lambda value: compost_labels[value],
-        key=f"compost_format_{ve.ve_id}_v090",
+        key=f"compost_format_{ve.ve_id}_v082",
     )
 
     ve.is_beverage_packaging = st.checkbox(
         "Getränkeverpackung",
         value=ve.is_beverage_packaging,
-        key=f"beverage_packaging_{ve.ve_id}_v090",
+        key=f"beverage_packaging_{ve.ve_id}_v082",
     )
     if ve.is_beverage_packaging:
         beverage_options = [
@@ -3497,13 +3500,13 @@ def render_special_path_inputs(ve):
                 else "other_beverage"
             ),
             format_func=lambda value: beverage_labels[value],
-            key=f"beverage_type_{ve.ve_id}_v090",
+            key=f"beverage_type_{ve.ve_id}_v082",
         )
 
     ve.used_for_dangerous_goods = st.checkbox(
         "Für den Transport gefährlicher Güter verwendet",
         value=ve.used_for_dangerous_goods,
-        key=f"dangerous_goods_{ve.ve_id}_v090",
+        key=f"dangerous_goods_{ve.ve_id}_v082",
         help="Maßgeblich ist die tatsächliche Gefahrgutverwendung; eine UN-Zulassung allein genügt nicht.",
     )
 
@@ -3521,19 +3524,19 @@ def render_special_path_inputs(ve):
             "clarification_required": "Klärung erforderlich",
             **SENSITIVE_PACKAGING_OPTIONS,
         }[value],
-        key=f"sensitive_category_{ve.ve_id}_v090",
+        key=f"sensitive_category_{ve.ve_id}_v082",
     )
 
     ve.potentially_innovative = st.checkbox(
         "Möglicherweise innovative Verpackung",
         value=ve.potentially_innovative,
-        key=f"innovative_packaging_{ve.ve_id}_v090",
+        key=f"innovative_packaging_{ve.ve_id}_v082",
     )
 
     ve.individually_designed_large_goods = st.checkbox(
         "Individuell gestaltete Verpackung für große Maschinen, Ausrüstung oder Rohstoffe",
         value=ve.individually_designed_large_goods,
-        key=f"art29_individual_design_{ve.ve_id}_v090",
+        key=f"art29_individual_design_{ve.ve_id}_v082",
         help="Ausnahme-Trigger ausschließlich für Art. 29 Abs. 1–3; keine allgemeine PPWR-Befreiung.",
     )
 
@@ -3558,7 +3561,7 @@ def render_special_path_inputs(ve):
                 "Ja, wenn ein Importeur oder Vertreiber die Verpackung unter eigenem Namen/eigener Marke "
                 "bereitstellt oder so verändert, dass die Konformität beeinflusst werden kann."
             ),
-            key=f"article21_trigger_{ve.ve_id}_v090",
+            key=f"article21_trigger_{ve.ve_id}_v082",
         )
     else:
         ve.article21_manufacturer_trigger = "clarification_required"
@@ -3580,12 +3583,55 @@ def render_packaging_obligations(ve):
     relevant = [
         item
         for item in register
-        if (item.scope_type == "VE" and item.scope_id == ve.ve_id)
-        or (item.scope_type == "PKG" and item.scope_id in pkg_ids)
-        or (item.scope_type == "flow" and item.scope_id in flow_ids)
-        or (item.scope_type == "company" and any(flow_id in item.trigger_ids for flow_id in flow_ids))
+        if (
+            (
+                (item.scope_type == "VE" and item.scope_id == ve.ve_id)
+                or (item.scope_type == "PKG" and item.scope_id in pkg_ids)
+                or (item.scope_type == "flow" and item.scope_id in flow_ids)
+                or (item.scope_type == "company" and any(flow_id in item.trigger_ids for flow_id in flow_ids))
+            )
+            and item.applicability != "future"
+        )
     ]
     render_obligation_list(relevant, "Rollen- und Verpackungspflichten")
+
+
+def render_documentation_outlook(ve):
+    pkg_ids = {pkg.pkg_id for pkg in ve.components}
+    flow_ids = {flow.flow_id for flow in ve.market_flows}
+    register = build_register(case, collect_case_roles(case))
+    relevant = [
+        item for item in register
+        if (
+            (item.scope_type == "VE" and item.scope_id == ve.ve_id)
+            or (item.scope_type == "PKG" and item.scope_id in pkg_ids)
+            or (item.scope_type == "flow" and item.scope_id in flow_ids)
+            or (item.scope_type == "company" and any(fid in item.trigger_ids for fid in flow_ids))
+        )
+    ]
+    documents, future = build_documentation_register(relevant)
+
+    st.subheader("Nachweise aus ausgelösten Pflichten")
+    if not documents:
+        st.info("Für diese Verpackungseinheit wurden keine Dokumentationsnachweise aus den erfassten Pflichten abgeleitet.")
+    else:
+        for entry in documents:
+            parent = entry["parent"]
+            with st.container(border=True):
+                st.markdown(f"**{entry['title']}**")
+                st.caption(f"Abgeleitet aus: {parent.title} · {parent.obligation_id}")
+                for detail in entry["details"]:
+                    st.markdown(f"- {detail}")
+                if parent.evidence:
+                    st.caption("Erfasste Nachweise: " + "; ".join(parent.evidence))
+                if parent.applicability == "clarification_required":
+                    st.caption("Pflichtanwendbarkeit ist noch zu klären.")
+
+    st.subheader("Künftige Anforderungen")
+    if not future:
+        st.info("Für diese Verpackungseinheit wurden keine künftigen Pflichten ausgelöst.")
+    else:
+        render_obligation_list(future, "Noch nicht geltende Pflichten")
 
 def render_company_detail():
     st.header(
@@ -3962,7 +4008,7 @@ def render_company_detail():
             system.name = st.text_input(
                 f"Systemname ({system.system_id})",
                 value=system.name,
-                key=f"reuse_system_name_{system.system_id}_v090",
+                key=f"reuse_system_name_{system.system_id}_v082",
             )
             system.system_type = st.selectbox(
                 f"Systemart ({system.system_id})",
@@ -3977,10 +4023,10 @@ def render_company_detail():
                     "closed": "Geschlossen",
                     "clarification_required": "Klärung erforderlich",
                 }[value],
-                key=f"reuse_system_type_{system.system_id}_v090",
+                key=f"reuse_system_type_{system.system_id}_v082",
             )
 
-        if st.button("Wiederverwendungssystem hinzufügen", key="add_reuse_system_v090"):
+        if st.button("Wiederverwendungssystem hinzufügen", key="add_reuse_system_v082"):
             next_id = len(company.reuse_systems) + 1
             used_ids = {item.system_id for item in company.reuse_systems}
             while f"SYS-{next_id:03d}" in used_ids:
@@ -5072,11 +5118,7 @@ def render_ve_detail(ve):
         render_packaging_obligations(ve)
 
     with tab3:
-        st.info(
-            "Dokumentation, Konformitätsunterlagen "
-            "und Ausblick folgen nach Stabilisierung "
-            "der Rollen-Engine."
-        )
+        render_documentation_outlook(ve)
 
 
 # =========================================================
@@ -5167,7 +5209,7 @@ def render_pkg_detail(
         pkg.food_contact = st.checkbox(
             "Lebensmittelkontakt",
             value=pkg.food_contact,
-            key=f"food_contact_{ve.ve_id}_{pkg.pkg_id}_v090",
+            key=f"food_contact_{ve.ve_id}_{pkg.pkg_id}_v082",
         )
 
         st.markdown(
