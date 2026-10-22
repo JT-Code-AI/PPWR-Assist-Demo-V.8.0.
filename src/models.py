@@ -100,6 +100,46 @@ class RoleAssessment:
     basis_kind: str = "legal"
 
 
+@dataclass
+class ObligationDefinition:
+    """Ruleset definition; behavior is implemented in rule functions."""
+
+    obligation_id: str
+    title: str
+    trigger_type: str
+    trigger_ids: list[str] = field(default_factory=list)
+    legal_basis: list[str] = field(default_factory=list)
+    interpretation_basis: list[str] = field(default_factory=list)
+    requirement_text: str = ""
+    applicable_from: Optional[str] = None
+    depends_on_act: bool = False
+    time_rule: str = ""
+    country_scope: str = "EU"
+
+
+@dataclass
+class ObligationAssessment:
+    """Current, scoped result with separate applicability and work status."""
+
+    obligation_id: str
+    title: str
+    scope_type: str
+    scope_id: str
+    trigger_ids: list[str] = field(default_factory=list)
+    sources: list[str] = field(default_factory=list)
+    applicability: str = "clarification_required"
+    status: str = "Klärung erforderlich"
+    requirement_text: str = ""
+    country: str = ""
+    applicable_from: Optional[str] = None
+    depends_on_act: bool = False
+    time_rule: str = ""
+    missing_facts: list[str] = field(default_factory=list)
+    evidence: list[str] = field(default_factory=list)
+    notes: str = ""
+    rule_notes: list[str] = field(default_factory=list)
+
+
 # =========================================================
 # Verpackungseinheit
 # =========================================================
@@ -208,6 +248,8 @@ class PackagingUnit:
     sensitive_packaging_category: str = "no"
     potentially_innovative: bool = False
     individually_designed_large_goods: bool = False
+    # Article 21 trigger for importers/distributors; asked only where relevant.
+    article21_manufacturer_trigger: str = "clarification_required"
 
 
 # =========================================================
@@ -281,7 +323,7 @@ class ReuseSystem:
 class AssessmentCase:
     case_id: str
 
-    schema_version: str = "0.8.0"
+    schema_version: str = "0.9.0"
     ruleset_version: str = "development"
 
     created_at: date = field(
@@ -296,4 +338,8 @@ class AssessmentCase:
         default_factory=lambda: Company(
             company_id="COMP-001"
         )
+    )
+
+    obligation_records: list[ObligationAssessment] = field(
+        default_factory=list
     )

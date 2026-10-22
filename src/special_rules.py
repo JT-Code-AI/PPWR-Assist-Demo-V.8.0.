@@ -1,4 +1,4 @@
-"""Rule-based special-path register for PPWR-Assist v0.8.0.
+"""Rule-based special-path register for PPWR-Assist v0.9.0.
 
 The rule texts and triggers follow the supplied PPWR handover markdown.
 Where that specification leaves a duty's detailed applicability open, the
