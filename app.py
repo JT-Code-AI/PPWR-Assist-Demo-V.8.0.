@@ -8,7 +8,9 @@ from src.models import (
     RoleAssessment,
     ReuseSystem,
 )
-from src.special_rules import build_obligations
+from src.serialization import case_from_json, case_to_json
+from src.obligation_engine import build_register, WORK_STATUSES
+from src.models import ObligationAssessment
 
 
 # =========================================================
@@ -539,6 +541,7 @@ def ensure_ve_fields():
         "sensitive_packaging_category": "no",
         "potentially_innovative": False,
         "individually_designed_large_goods": False,
+        "article21_manufacturer_trigger": "clarification_required",
     }
 
     for ve in company.packaging_units:
@@ -686,7 +689,7 @@ ensure_ve_fields()
 ensure_pkg_fields()
 ensure_flow_fields()
 
-case.schema_version = "0.8.0"
+case.schema_version = "0.9.0"
 
 
 if "selected_object" not in st.session_state:
@@ -3119,7 +3122,7 @@ def render_roles(ve):
     )
 
     st.info(
-        "v0.8.0 ergänzt eine erste Sonderpfad- und "
+        "v0.9.0 ergänzt eine erste Sonderpfad- und "
         "Pflichtenübersicht. Die Anzeige ist keine "
         "vollständige Pflichtenbewertung; offene "
         "Tatbestände und Ausnahmen werden als "
@@ -3299,28 +3302,105 @@ OBLIGATION_STATUS_LABELS = {
 }
 
 
-def render_obligation_list(obligations, heading):
+OBLIGATION_APPLICABILITY_LABELS = {
+    "applicable": "Anwendbar",
+    "future": "Künftig anwendbar",
+    "clarification_required": "Anwendbarkeit zu klären",
+    "not_applicable": "Nicht anwendbar",
+}
+
+
+def collect_case_roles(active_case):
+    results = []
+    for ve in active_case.company.packaging_units:
+        producer = assess_producer(ve)
+        importer = assess_importer(ve)
+        distributor = assess_distributor(ve, producer, importer)
+        results.extend([producer, importer, distributor])
+        results.extend(
+            assess_manufacturer_flow(ve, flow, producer, importer, distributor)
+            for flow in ve.market_flows
+        )
+    return results
+
+
+def persist_obligation_progress(item):
+    key = (item.obligation_id, item.scope_type, item.scope_id, item.country)
+    record = next(
+        (r for r in case.obligation_records
+         if (r.obligation_id, r.scope_type, r.scope_id, r.country) == key),
+        None,
+    )
+    if record is None:
+        record = ObligationAssessment(
+            obligation_id=item.obligation_id,
+            title=item.title,
+            scope_type=item.scope_type,
+            scope_id=item.scope_id,
+            country=item.country,
+        )
+        case.obligation_records.append(record)
+    record.status = item.status
+    record.evidence = list(item.evidence)
+    record.notes = item.notes
+
+
+def render_obligation_list(obligations, heading, editable=False):
     st.subheader(heading)
+    if editable:
+        st.caption(
+            "„Erfüllt“ dokumentiert nur Ihre eigene Bestätigung und ist keine rechtliche Zertifizierung durch PPWR-Assist."
+        )
     if not obligations:
         st.info("Für die erfassten Angaben wurde hier kein Sonderpfad ausgelöst.")
         return
 
     for item in obligations:
         with st.container(border=True):
-            st.markdown(f"**{item['title']}**")
+            st.markdown(f"**{item.title}**")
+            due = f" · ab {item.applicable_from}" if item.applicable_from else ""
+            if item.depends_on_act:
+                due = " · Termin hängt von Durchführungsrechtsakt ab"
             st.caption(
-                f"{OBLIGATION_STATUS_LABELS.get(item['status'], item['status'])}"
-                + (f" · ab {item['effective_date']}" if item.get("effective_date") else "")
+                f"Anwendbarkeit: {OBLIGATION_APPLICABILITY_LABELS.get(item.applicability, item.applicability)}"
+                f" · Bearbeitung: {item.status}{due}"
             )
-            st.write(item["summary"])
-            for note in item.get("notes", []):
-                st.warning(note)
-            st.caption("Rechtsgrundlage: " + "; ".join(item["legal_basis"]))
+            st.write(item.requirement_text)
+            st.caption(f"Betroffen: {item.scope_type} {item.scope_id}" + (f" · {item.country}" if item.country else ""))
+            if item.missing_facts:
+                st.warning("Offene Tatsachen: " + "; ".join(item.missing_facts))
+            if item.rule_notes:
+                st.info("Regelhinweise: " + "; ".join(item.rule_notes))
+            if item.notes:
+                st.caption("Notiz: " + item.notes)
+            if item.time_rule:
+                st.caption("Zeitregel: " + item.time_rule)
+            st.caption("Rechtsgrundlage: " + "; ".join(item.sources))
             st.caption(
-                "Pflicht-ID: " + item["obligation_id"]
+                "Pflicht-ID: " + item.obligation_id
                 + " · Auslöser: "
-                + (", ".join(item["trigger_ids"]) or "Verpackungsmerkmale")
+                + (", ".join(item.trigger_ids) or "Verpackungsmerkmale")
             )
+            if editable:
+                progress_key = "_".join((item.obligation_id, item.scope_type, item.scope_id, item.country))
+                item.status = st.selectbox(
+                    "Bearbeitungsstatus",
+                    options=list(WORK_STATUSES),
+                    index=list(WORK_STATUSES).index(item.status),
+                    key=f"ob_status_{progress_key}",
+                )
+                evidence_text = st.text_area(
+                    "Nachweis / Belegverweis",
+                    value="\n".join(item.evidence),
+                    key=f"ob_evidence_{progress_key}",
+                )
+                item.evidence = [line.strip() for line in evidence_text.splitlines() if line.strip()]
+                item.notes = st.text_area(
+                    "Notiz",
+                    value=item.notes,
+                    key=f"ob_notes_{progress_key}",
+                )
+                persist_obligation_progress(item)
 
 
 def render_special_path_inputs(ve):
@@ -3334,7 +3414,7 @@ def render_special_path_inputs(ve):
     ve.intended_for_reuse = st.checkbox(
         "Zur Wiederverwendung / Mehrweg vorgesehen",
         value=ve.intended_for_reuse,
-        key=f"intended_for_reuse_{ve.ve_id}_v080",
+        key=f"intended_for_reuse_{ve.ve_id}_v090",
     )
 
     if ve.intended_for_reuse:
@@ -3350,7 +3430,7 @@ def render_special_path_inputs(ve):
             format_func=lambda value: "Kein System zugeordnet"
             if value == ""
             else labels.get(value, value),
-            key=f"reuse_system_link_{ve.ve_id}_v080",
+            key=f"reuse_system_link_{ve.ve_id}_v090",
         )
         ve.reuse_system_id = selected or None
         if not systems:
@@ -3361,7 +3441,7 @@ def render_special_path_inputs(ve):
     ve.is_plastic_carrier_bag = st.checkbox(
         "Kunststofftragetasche",
         value=ve.is_plastic_carrier_bag,
-        key=f"plastic_bag_{ve.ve_id}_v080",
+        key=f"plastic_bag_{ve.ve_id}_v090",
     )
 
     compost_options = [
@@ -3387,13 +3467,13 @@ def render_special_path_inputs(ve):
             ve.compostable_format if ve.compostable_format in compost_options else "no"
         ),
         format_func=lambda value: compost_labels[value],
-        key=f"compost_format_{ve.ve_id}_v080",
+        key=f"compost_format_{ve.ve_id}_v090",
     )
 
     ve.is_beverage_packaging = st.checkbox(
         "Getränkeverpackung",
         value=ve.is_beverage_packaging,
-        key=f"beverage_packaging_{ve.ve_id}_v080",
+        key=f"beverage_packaging_{ve.ve_id}_v090",
     )
     if ve.is_beverage_packaging:
         beverage_options = [
@@ -3417,13 +3497,13 @@ def render_special_path_inputs(ve):
                 else "other_beverage"
             ),
             format_func=lambda value: beverage_labels[value],
-            key=f"beverage_type_{ve.ve_id}_v080",
+            key=f"beverage_type_{ve.ve_id}_v090",
         )
 
     ve.used_for_dangerous_goods = st.checkbox(
         "Für den Transport gefährlicher Güter verwendet",
         value=ve.used_for_dangerous_goods,
-        key=f"dangerous_goods_{ve.ve_id}_v080",
+        key=f"dangerous_goods_{ve.ve_id}_v090",
         help="Maßgeblich ist die tatsächliche Gefahrgutverwendung; eine UN-Zulassung allein genügt nicht.",
     )
 
@@ -3441,21 +3521,47 @@ def render_special_path_inputs(ve):
             "clarification_required": "Klärung erforderlich",
             **SENSITIVE_PACKAGING_OPTIONS,
         }[value],
-        key=f"sensitive_category_{ve.ve_id}_v080",
+        key=f"sensitive_category_{ve.ve_id}_v090",
     )
 
     ve.potentially_innovative = st.checkbox(
         "Möglicherweise innovative Verpackung",
         value=ve.potentially_innovative,
-        key=f"innovative_packaging_{ve.ve_id}_v080",
+        key=f"innovative_packaging_{ve.ve_id}_v090",
     )
 
     ve.individually_designed_large_goods = st.checkbox(
         "Individuell gestaltete Verpackung für große Maschinen, Ausrüstung oder Rohstoffe",
         value=ve.individually_designed_large_goods,
-        key=f"art29_individual_design_{ve.ve_id}_v080",
+        key=f"art29_individual_design_{ve.ve_id}_v090",
         help="Ausnahme-Trigger ausschließlich für Art. 29 Abs. 1–3; keine allgemeine PPWR-Befreiung.",
     )
+
+    producer = assess_producer(ve)
+    importer = assess_importer(ve)
+    distributor = assess_distributor(ve, producer, importer)
+    if importer.status != "no" or distributor.status != "no":
+        ve.article21_manufacturer_trigger = st.selectbox(
+            "Art. 21: Pflichten des Herstellers für diese Verpackung?",
+            options=["clarification_required", "yes", "no"],
+            index=["clarification_required", "yes", "no"].index(
+                ve.article21_manufacturer_trigger
+                if ve.article21_manufacturer_trigger in {"clarification_required", "yes", "no"}
+                else "clarification_required"
+            ),
+            format_func=lambda value: {
+                "clarification_required": "Noch zu klären",
+                "yes": "Ja",
+                "no": "Nein",
+            }[value],
+            help=(
+                "Ja, wenn ein Importeur oder Vertreiber die Verpackung unter eigenem Namen/eigener Marke "
+                "bereitstellt oder so verändert, dass die Konformität beeinflusst werden kann."
+            ),
+            key=f"article21_trigger_{ve.ve_id}_v090",
+        )
+    else:
+        ve.article21_manufacturer_trigger = "clarification_required"
 
 
 SENSITIVE_PACKAGING_OPTIONS = {
@@ -3469,12 +3575,17 @@ SENSITIVE_PACKAGING_OPTIONS = {
 
 def render_packaging_obligations(ve):
     pkg_ids = {pkg.pkg_id for pkg in ve.components}
+    flow_ids = {flow.flow_id for flow in ve.market_flows}
+    register = build_register(case, collect_case_roles(case))
     relevant = [
         item
-        for item in build_obligations(case)
-        if item["scope_id"] == ve.ve_id or item["scope_id"] in pkg_ids
+        for item in register
+        if (item.scope_type == "VE" and item.scope_id == ve.ve_id)
+        or (item.scope_type == "PKG" and item.scope_id in pkg_ids)
+        or (item.scope_type == "flow" and item.scope_id in flow_ids)
+        or (item.scope_type == "company" and any(flow_id in item.trigger_ids for flow_id in flow_ids))
     ]
-    render_obligation_list(relevant, "Sonderpfad-Ergebnisse und Pflichtenhinweise")
+    render_obligation_list(relevant, "Rollen- und Verpackungspflichten")
 
 def render_company_detail():
     st.header(
@@ -3851,7 +3962,7 @@ def render_company_detail():
             system.name = st.text_input(
                 f"Systemname ({system.system_id})",
                 value=system.name,
-                key=f"reuse_system_name_{system.system_id}_v080",
+                key=f"reuse_system_name_{system.system_id}_v090",
             )
             system.system_type = st.selectbox(
                 f"Systemart ({system.system_id})",
@@ -3866,10 +3977,10 @@ def render_company_detail():
                     "closed": "Geschlossen",
                     "clarification_required": "Klärung erforderlich",
                 }[value],
-                key=f"reuse_system_type_{system.system_id}_v080",
+                key=f"reuse_system_type_{system.system_id}_v090",
             )
 
-        if st.button("Wiederverwendungssystem hinzufügen", key="add_reuse_system_v080"):
+        if st.button("Wiederverwendungssystem hinzufügen", key="add_reuse_system_v090"):
             next_id = len(company.reuse_systems) + 1
             used_ids = {item.system_id for item in company.reuse_systems}
             while f"SYS-{next_id:03d}" in used_ids:
@@ -3893,12 +4004,9 @@ def render_company_detail():
 
     with tab3:
         render_obligation_list(
-            [
-                item
-                for item in build_obligations(case)
-                if item["scope_id"] == company.company_id
-            ],
-            "Pflichtenhinweise auf Unternehmensebene",
+            build_register(case, collect_case_roles(case)),
+            "Konsolidiertes Pflichtenregister",
+            editable=True,
         )
 
 
@@ -5059,7 +5167,7 @@ def render_pkg_detail(
         pkg.food_contact = st.checkbox(
             "Lebensmittelkontakt",
             value=pkg.food_contact,
-            key=f"food_contact_{ve.ve_id}_{pkg.pkg_id}_v080",
+            key=f"food_contact_{ve.ve_id}_{pkg.pkg_id}_v090",
         )
 
         st.markdown(
@@ -5489,6 +5597,58 @@ left, right = st.columns(
 
 
 with left:
+    with st.expander("Prüffall exportieren / importieren"):
+        st.download_button(
+            "JSON exportieren",
+            data=case_to_json(case),
+            file_name=f"{case.case_id}.json",
+            mime="application/json",
+            use_container_width=True,
+        )
+        uploaded_case = st.file_uploader(
+            "JSON-Prüffall importieren",
+            type=["json"],
+            key="case_import_file",
+        )
+        if uploaded_case and st.button(
+            "Prüffall laden",
+            key="import_case_button",
+            use_container_width=True,
+        ):
+            try:
+                imported_case = case_from_json(
+                    uploaded_case.getvalue().decode("utf-8-sig")
+                )
+                st.session_state.case = imported_case
+                st.session_state.selected_object = {
+                    "type": "company",
+                    "id": imported_case.company.company_id,
+                }
+                st.session_state.expanded_ves = set()
+                st.session_state.next_ve_number = (
+                    max(numeric_suffix(v.ve_id) for v in imported_case.company.packaging_units)
+                    + 1 if imported_case.company.packaging_units else 1
+                )
+                st.session_state.next_pkg_number = (
+                    max(
+                        (numeric_suffix(p.pkg_id)
+                         for v in imported_case.company.packaging_units
+                         for p in v.components),
+                        default=0,
+                    ) + 1
+                )
+                st.session_state.next_flow_number = (
+                    max(
+                        (numeric_suffix(f.flow_id)
+                         for v in imported_case.company.packaging_units
+                         for f in v.market_flows),
+                        default=0,
+                    ) + 1
+                )
+                st.rerun()
+            except (ValueError, UnicodeDecodeError) as exc:
+                st.error(str(exc))
+
     render_structure_tree()
 
 
