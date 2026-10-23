@@ -1,1 +1,0 @@
-"""PPWR-Assist application package."""
