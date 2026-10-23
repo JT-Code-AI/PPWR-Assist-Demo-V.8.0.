@@ -1,4 +1,42 @@
-import streamlit as st
+import streamlit as _streamlit
+
+
+_WIDGET_APIS = {
+    "button",
+    "checkbox",
+    "download_button",
+    "file_uploader",
+    "multiselect",
+    "number_input",
+    "radio",
+    "selectbox",
+    "text_area",
+    "text_input",
+}
+
+
+def _widget_key(key):
+    generation = _streamlit.session_state.get("widget_generation", 0)
+    return f"case{generation}_{key}"
+
+
+class _StreamlitWithScopedWidgetKeys:
+    """Give form widgets new identities after a case import."""
+
+    def __getattr__(self, name):
+        api = getattr(_streamlit, name)
+        if name not in _WIDGET_APIS:
+            return api
+
+        def scoped_widget(*args, **kwargs):
+            if kwargs.get("key") is not None:
+                kwargs["key"] = _widget_key(kwargs["key"])
+            return api(*args, **kwargs)
+
+        return scoped_widget
+
+
+st = _StreamlitWithScopedWidgetKeys()
 
 from src.models import (
     AssessmentCase,
@@ -9,6 +47,7 @@ from src.models import (
     ReuseSystem,
 )
 from src.serialization import case_from_json, case_to_json
+from src.import_state import install_imported_case
 from src.obligation_engine import build_register, WORK_STATUSES
 from src.documentation_register import build_documentation_register
 from src.models import ObligationAssessment
@@ -524,6 +563,9 @@ if "case" not in st.session_state:
 case = st.session_state.case
 company = case.company
 
+if "widget_generation" not in st.session_state:
+    st.session_state.widget_generation = 0
+
 
 # =========================================================
 # Migration
@@ -869,6 +911,23 @@ def next_flow_id():
     return result
 
 
+def load_uploaded_case():
+    uploaded_case = st.session_state.get(_widget_key("case_import_file"))
+    if uploaded_case is None:
+        st.session_state["case_import_error"] = "Bitte zuerst eine JSON-Datei auswählen."
+        return
+
+    try:
+        imported_case = case_from_json(
+            uploaded_case.getvalue().decode("utf-8-sig")
+        )
+    except (ValueError, UnicodeDecodeError) as exc:
+        st.session_state["case_import_error"] = str(exc)
+        return
+
+    install_imported_case(st.session_state, imported_case)
+
+
 # =========================================================
 # Allgemeine Hilfsfunktionen
 # =========================================================
@@ -952,6 +1011,7 @@ def init_widget_state(
     key,
     value,
 ):
+    key = _widget_key(key)
     if key not in st.session_state:
         st.session_state[key] = value
 
@@ -1056,7 +1116,7 @@ def update_ve_name(ve_id):
 
     if ve:
         ve.name = st.session_state.get(
-            f"name_{ve_id}",
+            _widget_key(f"name_{ve_id}"),
             "",
         )
 
@@ -1068,7 +1128,7 @@ def update_ve_description(ve_id):
 
     if ve:
         ve.description = st.session_state.get(
-            f"description_{ve_id}",
+            _widget_key(f"description_{ve_id}"),
             "",
         )
 
@@ -1084,7 +1144,7 @@ def update_pkg_name(
 
     if pkg:
         pkg.name = st.session_state.get(
-            f"name_{ve_id}_{pkg_id}",
+            _widget_key(f"name_{ve_id}_{pkg_id}"),
             "",
         )
 
@@ -1100,7 +1160,7 @@ def update_pkg_material(
 
     if pkg:
         pkg.material = st.session_state.get(
-            f"material_{ve_id}_{pkg_id}",
+            _widget_key(f"material_{ve_id}_{pkg_id}"),
             "",
         )
 
@@ -1116,7 +1176,7 @@ def update_pkg_weight(
 
     if pkg:
         pkg.weight_g = st.session_state.get(
-            f"weight_{ve_id}_{pkg_id}",
+            _widget_key(f"weight_{ve_id}_{pkg_id}"),
             0.0,
         )
 
@@ -5785,44 +5845,15 @@ with left:
             type=["json"],
             key="case_import_file",
         )
-        if uploaded_case and st.button(
+        st.button(
             "Prüffall laden",
             key="import_case_button",
             use_container_width=True,
-        ):
-            try:
-                imported_case = case_from_json(
-                    uploaded_case.getvalue().decode("utf-8-sig")
-                )
-                st.session_state.case = imported_case
-                st.session_state.selected_object = {
-                    "type": "company",
-                    "id": imported_case.company.company_id,
-                }
-                st.session_state.expanded_ves = set()
-                st.session_state.next_ve_number = (
-                    max(numeric_suffix(v.ve_id) for v in imported_case.company.packaging_units)
-                    + 1 if imported_case.company.packaging_units else 1
-                )
-                st.session_state.next_pkg_number = (
-                    max(
-                        (numeric_suffix(p.pkg_id)
-                         for v in imported_case.company.packaging_units
-                         for p in v.components),
-                        default=0,
-                    ) + 1
-                )
-                st.session_state.next_flow_number = (
-                    max(
-                        (numeric_suffix(f.flow_id)
-                         for v in imported_case.company.packaging_units
-                         for f in v.market_flows),
-                        default=0,
-                    ) + 1
-                )
-                st.rerun()
-            except (ValueError, UnicodeDecodeError) as exc:
-                st.error(str(exc))
+            disabled=uploaded_case is None,
+            on_click=load_uploaded_case,
+        )
+        if st.session_state.get("case_import_error"):
+            st.error(st.session_state["case_import_error"])
 
     render_structure_tree()
 

@@ -1,4 +1,4 @@
-# PPWR-Assist v0.8.8
+# PPWR-Assist v0.8.9
 
 Streamlit-Prototyp für die Erfassung von Unternehmen und Verpackungen sowie die regelbasierte Ableitung von PPWR-Pflichten.
 
@@ -12,6 +12,12 @@ streamlit run app.py
 ```
 
 Unter Windows: `.venv\\Scripts\\activate`.
+
+## Änderungen in v0.8.9
+
+- Beim Import werden alte Streamlit-Widget-Zustände verworfen und die importierten Unternehmens-, VE-, Komponenten- und Marktflusswerte neu angezeigt.
+- IDs und Nummernkreise werden aus dem geladenen Prüffall wiederhergestellt.
+- Ein fehlerhafter Import ersetzt den aktuell geöffneten Prüffall nicht.
 
 ## Änderungen in v0.8.8
 

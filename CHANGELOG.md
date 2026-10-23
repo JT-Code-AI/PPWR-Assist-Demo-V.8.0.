@@ -1,5 +1,12 @@
 # Änderungen
 
+## v0.8.9
+
+- Importierte Prüffälle ersetzen nun auch die Widget-Zustände des vorherigen Falls; Formularwerte werden mit einer neuen Widget-Generation geladen.
+- Unternehmensdaten, VE-/PKG-/Marktflussfelder und Auswahlwerte werden dadurch nach dem Import aus dem eingelesenen Fall angezeigt, auch wenn IDs wiederverwendet werden.
+- FLOW-/PKG-/VE-Nummernzähler werden weiterhin aus den importierten IDs abgeleitet.
+- Import-Fehler werden im Formular ausgegeben, ohne den aktiven Prüffall zu ersetzen.
+
 ## v0.8.8
 
 - Art.-21-Pflichten erhalten eine eigene Pflicht-ID und einen eigenständigen, bedingten Pflichttext; sie werden nicht mehr mit der allgemeinen Art.-15-Pflicht zusammengeführt.
