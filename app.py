@@ -3372,8 +3372,9 @@ def render_obligation_list(obligations, heading, editable=False):
                 st.warning("Offene Tatsachen: " + "; ".join(item.missing_facts))
             if item.rule_notes:
                 st.info("Regelhinweise: " + "; ".join(item.rule_notes))
-            if item.exceptions:
-                st.caption("Ausnahmen / Abgrenzungen: " + "; ".join(item.exceptions))
+            exceptions = getattr(item, "exceptions", [])
+            if exceptions:
+                st.caption("Ausnahmen / Abgrenzungen: " + "; ".join(exceptions))
             if item.notes:
                 st.caption("Notiz: " + item.notes)
             if item.time_rule:
