@@ -611,7 +611,7 @@ def ensure_ve_fields():
         "sensitive_packaging_category": "no",
         "potentially_innovative": False,
         "individually_designed_large_goods": False,
-        "article21_manufacturer_trigger": "clarification_required",
+        "article21_para1_trigger": "clarification_required",
     }
 
     for ve in company.packaging_units:
@@ -726,6 +726,8 @@ def ensure_flow_fields():
                 )
 
             defaults = {
+                "label": "",
+
                 "dispatch_country":
                     "clarification_required",
 
@@ -3010,13 +3012,36 @@ def assess_unpacking_manufacturer(ve):
 # Rollenanzeige
 # =========================================================
 
-def render_role_card(result):
+def market_flow_reference(flow):
+    label = (flow.label or "").strip()
+    if label:
+        return f"{flow.flow_id} – {label}"
+    return f"{flow.flow_id} – Bezeichnung nicht angegeben"
+
+
+def obligation_market_flow_references(item, market_flows):
+    if item.scope_type == "flow":
+        flow_ids = {item.scope_id}
+    elif item.scope_type == "company":
+        flow_ids = set(item.trigger_ids)
+    else:
+        return []
+    return [
+        market_flow_reference(flow)
+        for flow in market_flows
+        if flow.flow_id in flow_ids
+    ]
+
+
+def render_role_card(result, market_flow=None):
     with st.container(
         border=True
     ):
         st.markdown(
             f"### {result.title}"
         )
+        if market_flow is not None:
+            st.caption("Marktfluss: " + market_flow_reference(market_flow))
 
         status_text = (
             ROLE_STATUS_LABELS.get(
@@ -3178,7 +3203,8 @@ def render_roles(ve):
         )
 
         render_role_card(
-            result
+            result,
+            market_flow=flow,
         )
 
     unpacking_result = (
@@ -3192,9 +3218,7 @@ def render_roles(ve):
     )
 
     st.info(
-        "v0.8.5 verbessert die Ansicht mit getrennt scrollbaren "
-        "Struktur- und Registerinhalten. Die Anzeige ist keine "
-        "vollständige Pflichtenbewertung; offene "
+        "Die Anzeige ist keine vollständige Pflichtenbewertung; offene "
         "Tatbestände und Ausnahmen werden als "
         "Klärungsbedarf ausgewiesen."
     )
@@ -3416,7 +3440,8 @@ def persist_obligation_progress(item):
     record.notes = item.notes
 
 
-def render_obligation_list(obligations, heading, editable=False):
+def render_obligation_list(obligations, heading, editable=False, market_flows=None):
+    market_flows = market_flows or []
     st.subheader(heading)
     if editable:
         st.caption(
@@ -3438,6 +3463,9 @@ def render_obligation_list(obligations, heading, editable=False):
             )
             st.write(item.requirement_text)
             st.caption(f"Betroffen: {item.scope_type} {item.scope_id}" + (f" · {item.country}" if item.country else ""))
+            flow_references = obligation_market_flow_references(item, market_flows)
+            if flow_references:
+                st.caption("Marktfluss: " + "; ".join(flow_references))
             if item.missing_facts:
                 st.warning("Offene Tatsachen: " + "; ".join(item.missing_facts))
             if item.rule_notes:
@@ -3614,12 +3642,12 @@ def render_special_path_inputs(ve):
     importer = assess_importer(ve)
     distributor = assess_distributor(ve, producer, importer)
     if importer.status != "no" or distributor.status != "no":
-        ve.article21_manufacturer_trigger = st.selectbox(
-            "Art. 21: Pflichten des Herstellers für diese Verpackung?",
+        ve.article21_para1_trigger = st.selectbox(
+            "Fälle, in denen die Pflichten der Erzeuger auch für Importeure und Vertreiber gelten",
             options=["clarification_required", "yes", "no"],
             index=["clarification_required", "yes", "no"].index(
-                ve.article21_manufacturer_trigger
-                if ve.article21_manufacturer_trigger in {"clarification_required", "yes", "no"}
+                ve.article21_para1_trigger
+                if ve.article21_para1_trigger in {"clarification_required", "yes", "no"}
                 else "clarification_required"
             ),
             format_func=lambda value: {
@@ -3628,13 +3656,18 @@ def render_special_path_inputs(ve):
                 "no": "Nein",
             }[value],
             help=(
-                "Ja, wenn ein Importeur oder Vertreiber die Verpackung unter eigenem Namen/eigener Marke "
-                "bereitstellt oder so verändert, dass die Konformität beeinflusst werden kann."
+                "Hier wird geprüft, ob ein Fall nach Art. 21 Abs. 1 vorliegt: Ein Importeur oder "
+                "Vertreiber bringt die Verpackung unter eigenem Namen/eigener Marke in Verkehr "
+                "oder verändert sie so, dass die Konformität beeinträchtigt werden kann. "
+                "Art. 21 Abs. 2 wird zusätzlich anhand des Kleinstunternehmensstatus und der "
+                "Lieferantenangaben geprüft. Ist der Importeur/Vertreiber ein Kleinstunternehmen "
+                "und der Verpackungslieferant in der Union ansässig, gilt der Lieferant als Erzeuger "
+                "für die Zwecke des Art. 15."
             ),
             key=f"article21_trigger_{ve.ve_id}_v082",
         )
     else:
-        ve.article21_manufacturer_trigger = "clarification_required"
+        ve.article21_para1_trigger = "clarification_required"
 
 
 SENSITIVE_PACKAGING_OPTIONS = {
@@ -3663,7 +3696,11 @@ def render_packaging_obligations(ve):
             and item.applicability != "future"
         )
     ]
-    render_obligation_list(relevant, "Rollen- und Verpackungspflichten")
+    render_obligation_list(
+        relevant,
+        "Rollen- und Verpackungspflichten",
+        market_flows=ve.market_flows,
+    )
 
 
 def render_documentation_outlook(ve):
@@ -3696,6 +3733,9 @@ def render_documentation_outlook(ve):
             with st.container(border=True):
                 st.markdown(f"**{entry['title']}**")
                 st.caption(f"Abgeleitet aus: {parent.title} · {parent.obligation_id}")
+                flow_references = obligation_market_flow_references(parent, ve.market_flows)
+                if flow_references:
+                    st.caption("Marktfluss: " + "; ".join(flow_references))
                 for detail in entry["details"]:
                     st.markdown(f"- {detail}")
                 if parent.evidence:
@@ -3707,7 +3747,11 @@ def render_documentation_outlook(ve):
     if not future:
         st.info("Für diese Verpackungseinheit wurden keine künftigen Pflichten ausgelöst.")
     else:
-        render_obligation_list(future, "Noch nicht geltende Pflichten")
+        render_obligation_list(
+            future,
+            "Noch nicht geltende Pflichten",
+            market_flows=ve.market_flows,
+        )
 
 def render_company_detail():
     st.header(
@@ -4129,6 +4173,11 @@ def render_company_detail():
             build_register(case, collect_case_roles(case)),
             "Konsolidiertes Pflichtenregister",
             editable=True,
+            market_flows=[
+                flow
+                for unit in company.packaging_units
+                for flow in unit.market_flows
+            ],
         )
 
 
@@ -4168,7 +4217,7 @@ def render_market_flows(ve):
 
         with st.expander(
             (
-                f"{flow.flow_id} – "
+                f"{market_flow_reference(flow)} · "
                 f"{source} → {target}"
             ),
             expanded=(
@@ -4178,6 +4227,13 @@ def render_market_flows(ve):
                 == 1
             ),
         ):
+            flow.label = st.text_input(
+                "Bezeichnung des Marktflusses",
+                value=flow.label,
+                key=f"flow_label_{ve.ve_id}_{flow.flow_id}",
+                help="Frei wählbare Bezeichnung zur leichteren Zuordnung. Die interne Flow-ID bleibt unverändert und eindeutig.",
+            )
+
             col1, col2 = st.columns(
                 2
             )
@@ -4506,6 +4562,36 @@ def render_ve_detail(ve):
                 ve.ve_id,
             ),
         )
+
+        st.divider()
+
+        with st.expander(
+            "🗑️ Verpackungseinheit löschen"
+        ):
+            confirmed = st.checkbox(
+                (
+                    f"{ve.ve_id} "
+                    "wirklich löschen"
+                ),
+                key=(
+                    f"confirm_delete_"
+                    f"{ve.ve_id}"
+                ),
+            )
+
+            if st.button(
+                "VE endgültig löschen",
+                key=(
+                    f"delete_"
+                    f"{ve.ve_id}"
+                ),
+                disabled=not confirmed,
+            ):
+                delete_ve(
+                    ve.ve_id
+                )
+
+                st.rerun()
 
         st.divider()
 
@@ -5155,36 +5241,6 @@ def render_ve_detail(ve):
         render_market_flows(
             ve
         )
-
-        st.divider()
-
-        with st.expander(
-            "🗑️ Verpackungseinheit löschen"
-        ):
-            confirmed = st.checkbox(
-                (
-                    f"{ve.ve_id} "
-                    "wirklich löschen"
-                ),
-                key=(
-                    f"confirm_delete_"
-                    f"{ve.ve_id}"
-                ),
-            )
-
-            if st.button(
-                "VE endgültig löschen",
-                key=(
-                    f"delete_"
-                    f"{ve.ve_id}"
-                ),
-                disabled=not confirmed,
-            ):
-                delete_ve(
-                    ve.ve_id
-                )
-
-                st.rerun()
 
         render_special_path_inputs(ve)
 

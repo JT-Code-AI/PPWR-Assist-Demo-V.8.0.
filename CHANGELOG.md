@@ -1,5 +1,20 @@
 # Änderungen
 
+## v0.8.7
+
+- VE-Löschen-Bereich in „Übersicht“ direkt unter „Grunddaten“ und vor „Bestandteile“ verschoben.
+- Marktflüsse erhalten eine frei bearbeitbare Bezeichnung; FLOW-IDs und Nummernverwaltung bleiben unverändert.
+- Marktflussbezeichnungen erscheinen in Hersteller-Rollen, Rollen- und Pflichten, Dokumentation und Ausblick.
+- Bestehende Prüffälle behalten ihre Marktflüsse; bei fehlender Bezeichnung wird ein leerer Standardwert ergänzt.
+
+## v0.8.6
+
+- Art.-21-Eingabe mit dem amtlichen Titel „Fälle, in denen die Pflichten der Erzeuger auch für Importeure und Vertreiber gelten“ beschriftet; Abfrage erläutert nun ausdrücklich Art. 21 Abs. 1.
+- Art. 21 Abs. 2 wird vor der Zuweisung der Erzeugerpflichten geprüft: Kleinstunternehmen mit Verpackungslieferant in der EU erhalten die Art.-15-Pflicht nicht selbst zugewiesen.
+- Lieferantenstandorte werden aus den Verpackungsbestandteilen ausgewertet; unklare oder gemischte Lieferantenlagen bleiben als Klärungsbedarf sichtbar.
+- Art.-21-Sonderpfad wird in „Rollen & Pflichten“ mit einer eigenen, treffenderen Überschrift angezeigt.
+- Prüffall-Schema bleibt rückwärtskompatibel bei `0.8.2`.
+
 ## v0.8.5
 
 - Zweispaltige Grundansicht wiederhergestellt; feste Höhenregeln für ganze Spalten entfernt.

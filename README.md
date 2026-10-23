@@ -1,4 +1,4 @@
-# PPWR-Assist v0.8.5
+# PPWR-Assist v0.8.7
 
 Streamlit-Prototyp für die Erfassung von Unternehmen und Verpackungen sowie die regelbasierte Ableitung von PPWR-Pflichten.
 
@@ -12,6 +12,28 @@ streamlit run app.py
 ```
 
 Unter Windows: `.venv\\Scripts\\activate`.
+
+## Änderungen in v0.8.7
+
+- Der Bereich „Verpackungseinheit löschen“ steht in der VE-Übersicht direkt unter „Grunddaten“ und vor „Bestandteile“.
+- Für jeden Marktfluss kann eine eigene Bezeichnung eingegeben werden. Die interne eindeutige Flow-ID und Nummernverwaltung bleiben erhalten.
+- Die Bezeichnung wird in Rollen und Pflichten sowie in „Dokumentation & Ausblick“ einschließlich künftiger Anforderungen angezeigt.
+- Bestehende Prüffälle ohne Flow-Bezeichnung bleiben importierbar.
+
+## Änderungen in v0.8.6
+
+- Art. 21 wird mit dem amtlichen Artikeltitel angezeigt; die Eingabe prüft den Fall nach Absatz 1.
+- Die Kleinstunternehmensregel nach Art. 21 Abs. 2 wird anhand des Unternehmensstatus und der Lieferantenangaben der Verpackungsbestandteile berücksichtigt.
+- Bei Kleinstunternehmen mit EU-Verpackungslieferant werden die Erzeugerpflichten nach Art. 15 nicht dem Importeur/Vertreiber zugewiesen. Unklare oder gemischte Lieferantenangaben erzeugen Klärungsbedarf.
+- Der Sonderpfad erhält die Überschrift „Art. 21: Übernahme der Erzeugerpflichten nach Art. 15“.
+- Datenformat bleibt kompatibel mit Schema-Version `0.8.2`.
+
+## Prüfung
+
+```bash
+python -m py_compile app.py src/*.py
+python -m unittest discover -s tests -v
+```
 
 ## Änderungen in v0.8.5
 
