@@ -24,6 +24,82 @@ st.set_page_config(
     layout="wide",
 )
 
+st.markdown(
+    """
+    <style>
+    /* Kompakter Streamlit-Kopfbereich und Arbeitsfläche in Viewport-Höhe. */
+    header[data-testid="stHeader"] {
+        height: 2.5rem;
+    }
+    section[data-testid="stMain"] > div[data-testid="stMainBlockContainer"] {
+        padding-top: 0.65rem !important;
+        padding-bottom: 0.35rem !important;
+    }
+
+    /* Struktur: Überschrift und Unternehmen bleiben stehen, nur der Baum scrollt. */
+    .st-key-structure_tree {
+        display: flex;
+        flex-direction: column;
+        height: calc(100dvh - 15rem);
+        min-height: 16rem;
+        overflow: hidden;
+    }
+    .st-key-structure_tree_items {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 0.35rem;
+    }
+
+    /* Detailansicht scrollt unabhängig; Überschrift und Registerleiste bleiben fixiert. */
+    .st-key-detail_panel {
+        height: calc(100dvh - 13rem);
+        min-height: 20rem;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        padding-right: 0.4rem;
+    }
+    .st-key-detail_panel_heading {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--background-color, white);
+        padding-top: 0.2rem;
+    }
+    .st-key-detail_panel [data-testid="stTabs"] [role="tablist"] {
+        position: sticky;
+        top: 3.4rem;
+        z-index: 19;
+        background: var(--background-color, white);
+    }
+
+    /* Auf schmalen Ansichten bleibt der gewohnte Seiten-Scroll erhalten. */
+    @media (max-width: 768px) {
+        section[data-testid="stMain"] > div[data-testid="stMainBlockContainer"] {
+            height: auto;
+            overflow: visible;
+        }
+        .st-key-structure_tree,
+        .st-key-detail_panel {
+            height: auto;
+            min-height: 0;
+            overflow: visible;
+        }
+        .st-key-structure_tree_items {
+            flex: initial;
+            overflow: visible;
+        }
+        .st-key-detail_panel_heading,
+        .st-key-detail_panel [data-testid="stTabs"] [role="tablist"] {
+            position: static;
+        }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # =========================================================
 # Konstanten
@@ -3123,8 +3199,8 @@ def render_roles(ve):
     )
 
     st.info(
-        "v0.8.2 ergänzt die strukturierte Pflichtenverarbeitung und "
-        "Pflichtenübersicht. Die Anzeige ist keine "
+        "v0.8.4 verbessert die Ansicht mit fixierten Bereichsköpfen und "
+        "separaten Scrollbereichen. Die Anzeige ist keine "
         "vollständige Pflichtenbewertung; offene "
         "Tatbestände und Ausnahmen werden als "
         "Klärungsbedarf ausgewiesen."
@@ -3158,136 +3234,137 @@ def render_structure_tree():
 
                 st.rerun()
 
-        for ve in company.packaging_units:
-            expanded = (
-                ve.ve_id
-                in st.session_state.expanded_ves
-            )
-
-            with st.container(
-                border=True
-            ):
-                arrow_col, ve_col = st.columns(
-                    [0.08, 0.92],
-                    gap="small",
+        with st.container(key="structure_tree_items"):
+            for ve in company.packaging_units:
+                expanded = (
+                    ve.ve_id
+                    in st.session_state.expanded_ves
                 )
 
-                with arrow_col:
-                    arrow = (
-                        "▾"
-                        if expanded
-                        else "▸"
-                    )
-
-                    if st.button(
-                        arrow,
-                        key=f"toggle_{ve.ve_id}",
-                        type="tertiary",
-                    ):
-                        toggle_ve(
-                            ve.ve_id
-                        )
-
-                        st.rerun()
-
-                with ve_col:
-                    if st.button(
-                        (
-                            f"📦 {ve.ve_id} – "
-                            f"{ve.name or 'Neue Verpackung'}"
-                        ),
-                        key=f"select_{ve.ve_id}",
-                        type="tertiary",
-                    ):
-                        select_object(
-                            "ve",
-                            ve.ve_id,
-                        )
-
-                        st.rerun()
-
-            if expanded:
-                for pkg in ve.components:
-                    _, pkg_col = st.columns(
-                        [0.12, 0.88],
+                with st.container(
+                    border=True
+                ):
+                    arrow_col, ve_col = st.columns(
+                        [0.08, 0.92],
                         gap="small",
                     )
 
-                    with pkg_col:
-                        selected = (
-                            st.session_state.selected_object
-                        )
-
-                        active = (
-                            selected.get("type") == "pkg"
-                            and
-                            selected.get("id")
-                            == pkg.pkg_id
-                            and
-                            selected.get("parent_id")
-                            == ve.ve_id
-                        )
-
-                        prefix = (
-                            "●"
-                            if active
-                            else "↳"
+                    with arrow_col:
+                        arrow = (
+                            "▾"
+                            if expanded
+                            else "▸"
                         )
 
                         if st.button(
+                            arrow,
+                            key=f"toggle_{ve.ve_id}",
+                            type="tertiary",
+                        ):
+                            toggle_ve(
+                                ve.ve_id
+                            )
+
+                            st.rerun()
+
+                    with ve_col:
+                        if st.button(
                             (
-                                f"{prefix} "
-                                f"{pkg.pkg_id} – "
-                                f"{pkg.name or 'Bestandteil'}"
+                                f"📦 {ve.ve_id} – "
+                                f"{ve.name or 'Neue Verpackung'}"
                             ),
-                            key=(
-                                f"select_{ve.ve_id}_"
-                                f"{pkg.pkg_id}"
-                            ),
+                            key=f"select_{ve.ve_id}",
                             type="tertiary",
                         ):
                             select_object(
-                                "pkg",
-                                pkg.pkg_id,
+                                "ve",
                                 ve.ve_id,
                             )
 
                             st.rerun()
 
-        st.divider()
+                if expanded:
+                    for pkg in ve.components:
+                        _, pkg_col = st.columns(
+                            [0.12, 0.88],
+                            gap="small",
+                        )
 
-        if st.button(
-            "➕ Verpackungseinheit",
-            key="add_ve",
-            use_container_width=True,
-        ):
-            new_ve = PackagingUnit(
-                ve_id=next_ve_id(),
-                name="Neue Verpackung",
-            )
+                        with pkg_col:
+                            selected = (
+                                st.session_state.selected_object
+                            )
 
-            new_ve.classification_answers = (
-                CLASSIFICATION_DEFAULTS.copy()
-            )
+                            active = (
+                                selected.get("type") == "pkg"
+                                and
+                                selected.get("id")
+                                == pkg.pkg_id
+                                and
+                                selected.get("parent_id")
+                                == ve.ve_id
+                            )
 
-            new_ve.clarification_answers = (
-                CLARIFICATION_DEFAULTS.copy()
-            )
+                            prefix = (
+                                "●"
+                                if active
+                                else "↳"
+                            )
 
-            company.packaging_units.append(
-                new_ve
-            )
+                            if st.button(
+                                (
+                                    f"{prefix} "
+                                    f"{pkg.pkg_id} – "
+                                    f"{pkg.name or 'Bestandteil'}"
+                                ),
+                                key=(
+                                    f"select_{ve.ve_id}_"
+                                    f"{pkg.pkg_id}"
+                                ),
+                                type="tertiary",
+                            ):
+                                select_object(
+                                    "pkg",
+                                    pkg.pkg_id,
+                                    ve.ve_id,
+                                )
 
-            open_ve(
-                new_ve.ve_id
-            )
+                                st.rerun()
 
-            select_object(
-                "ve",
-                new_ve.ve_id,
-            )
+            st.divider()
 
-            st.rerun()
+            if st.button(
+                "➕ Verpackungseinheit",
+                key="add_ve",
+                use_container_width=True,
+            ):
+                new_ve = PackagingUnit(
+                    ve_id=next_ve_id(),
+                    name="Neue Verpackung",
+                )
+
+                new_ve.classification_answers = (
+                    CLASSIFICATION_DEFAULTS.copy()
+                )
+
+                new_ve.clarification_answers = (
+                    CLARIFICATION_DEFAULTS.copy()
+                )
+
+                company.packaging_units.append(
+                    new_ve
+                )
+
+                open_ve(
+                    new_ve.ve_id
+                )
+
+                select_object(
+                    "ve",
+                    new_ve.ve_id,
+                )
+
+                st.rerun()
 
 
 # =========================================================
@@ -3372,9 +3449,8 @@ def render_obligation_list(obligations, heading, editable=False):
                 st.warning("Offene Tatsachen: " + "; ".join(item.missing_facts))
             if item.rule_notes:
                 st.info("Regelhinweise: " + "; ".join(item.rule_notes))
-            exceptions = getattr(item, "exceptions", [])
-            if exceptions:
-                st.caption("Ausnahmen / Abgrenzungen: " + "; ".join(exceptions))
+            if item.exceptions:
+                st.caption("Ausnahmen / Abgrenzungen: " + "; ".join(item.exceptions))
             if item.notes:
                 st.caption("Notiz: " + item.notes)
             if item.time_rule:
@@ -3607,7 +3683,13 @@ def render_documentation_outlook(ve):
             (item.scope_type == "VE" and item.scope_id == ve.ve_id)
             or (item.scope_type == "PKG" and item.scope_id in pkg_ids)
             or (item.scope_type == "flow" and item.scope_id in flow_ids)
-            or (item.scope_type == "company" and any(fid in item.trigger_ids for fid in flow_ids))
+            or (
+                item.scope_type == "company"
+                and (
+                    any(fid in item.trigger_ids for fid in flow_ids)
+                    or "SPEC_HORECA_REFILL_REUSE" in item.trigger_ids
+                )
+            )
         )
     ]
     documents, future = build_documentation_register(relevant)
@@ -4327,9 +4409,10 @@ def render_market_flows(ve):
 # =========================================================
 
 def render_ve_detail(ve):
-    st.header(
-        f"{ve.ve_id} – {ve.name}"
-    )
+    with st.container(key="detail_panel_heading"):
+        st.header(
+            f"{ve.ve_id} – {ve.name}"
+        )
 
     tab1, tab2, tab3 = st.tabs(
         [
@@ -5696,55 +5779,56 @@ with left:
 
 
 with right:
-    selected = (
-        st.session_state.selected_object
-    )
-
-    if (
-        selected["type"]
-        == "company"
-    ):
-        render_company_detail()
-
-    elif (
-        selected["type"]
-        == "ve"
-    ):
-        ve = find_ve(
-            selected["id"]
+    with st.container(key="detail_panel"):
+        selected = (
+            st.session_state.selected_object
         )
 
-        if ve:
-            render_ve_detail(
-                ve
+        if (
+            selected["type"]
+            == "company"
+        ):
+            render_company_detail()
+
+        elif (
+            selected["type"]
+            == "ve"
+        ):
+            ve = find_ve(
+                selected["id"]
             )
 
-        else:
-            st.error(
-                "Verpackungseinheit nicht gefunden."
+            if ve:
+                render_ve_detail(
+                    ve
+                )
+
+            else:
+                st.error(
+                    "Verpackungseinheit nicht gefunden."
+                )
+
+        elif (
+            selected["type"]
+            == "pkg"
+        ):
+            ve, pkg = find_pkg(
+                selected["id"],
+                selected.get(
+                    "parent_id"
+                ),
             )
 
-    elif (
-        selected["type"]
-        == "pkg"
-    ):
-        ve, pkg = find_pkg(
-            selected["id"],
-            selected.get(
-                "parent_id"
-            ),
-        )
+            if ve and pkg:
+                render_pkg_detail(
+                    ve,
+                    pkg,
+                )
 
-        if ve and pkg:
-            render_pkg_detail(
-                ve,
-                pkg,
-            )
-
-        else:
-            st.error(
-                "Bestandteil nicht gefunden."
-            )
+            else:
+                st.error(
+                    "Bestandteil nicht gefunden."
+                )
 
 
 # =========================================================
