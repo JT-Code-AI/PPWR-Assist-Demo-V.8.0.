@@ -27,71 +27,64 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    /* Kompakter Streamlit-Kopfbereich und Arbeitsfläche in Viewport-Höhe. */
+    /* Kompakterer Abstand oberhalb des Anwendungstitels. */
     header[data-testid="stHeader"] {
         height: 2.5rem;
     }
     section[data-testid="stMain"] > div[data-testid="stMainBlockContainer"] {
-        padding-top: 0.65rem !important;
+        padding-top: 0.5rem !important;
         padding-bottom: 0.35rem !important;
     }
-
-    /* Struktur: Überschrift und Unternehmen bleiben stehen, nur der Baum scrollt. */
-    .st-key-structure_tree {
-        display: flex;
-        flex-direction: column;
-        height: calc(100dvh - 15rem);
-        min-height: 16rem;
-        overflow: hidden;
+    @media (min-width: 769px) {
+        section[data-testid="stMain"] div[data-testid="stHorizontalBlock"] {
+            flex-wrap: nowrap !important;
+        }
+        section[data-testid="stMain"] div[data-testid="stHorizontalBlock"] > div[data-testid="column"] {
+            min-width: 0 !important;
+        }
     }
+
+    /* Nur die Liste scrollt; Strukturüberschrift und Unternehmen liegen darüber. */
     .st-key-structure_tree_items {
-        flex: 1 1 auto;
-        min-height: 0;
+        height: calc(100dvh - 23rem);
+        min-height: 14rem;
         overflow-y: auto;
         overscroll-behavior: contain;
         padding-right: 0.35rem;
     }
 
-    /* Detailansicht scrollt unabhängig; Überschrift und Registerleiste bleiben fixiert. */
-    .st-key-detail_panel {
-        height: calc(100dvh - 13rem);
+    /* Registerinhalt scrollt unabhängig; Überschrift und Register bleiben sichtbar. */
+    section[data-testid="stMain"] [data-testid="stTabs"] [role="tabpanel"] {
+        height: calc(100dvh - 19rem);
         min-height: 20rem;
         overflow-y: auto;
         overscroll-behavior: contain;
-        padding-right: 0.4rem;
+        padding-right: 0.35rem;
     }
     .st-key-detail_panel_heading {
         position: sticky;
-        top: 0;
+        top: 2.5rem;
         z-index: 20;
         background: var(--background-color, white);
         padding-top: 0.2rem;
     }
-    .st-key-detail_panel [data-testid="stTabs"] [role="tablist"] {
+    section[data-testid="stMain"] [data-testid="stTabs"] [role="tablist"] {
         position: sticky;
-        top: 3.4rem;
+        top: 6rem;
         z-index: 19;
         background: var(--background-color, white);
     }
 
-    /* Auf schmalen Ansichten bleibt der gewohnte Seiten-Scroll erhalten. */
+    /* Auf schmalen Ansichten wieder natürliche Seitenhöhe und Seiten-Scroll. */
     @media (max-width: 768px) {
-        section[data-testid="stMain"] > div[data-testid="stMainBlockContainer"] {
-            height: auto;
-            overflow: visible;
-        }
-        .st-key-structure_tree,
-        .st-key-detail_panel {
+        .st-key-structure_tree_items,
+        section[data-testid="stMain"] [data-testid="stTabs"] [role="tabpanel"] {
             height: auto;
             min-height: 0;
             overflow: visible;
         }
-        .st-key-structure_tree_items {
-            flex: initial;
-            overflow: visible;
-        }
         .st-key-detail_panel_heading,
-        .st-key-detail_panel [data-testid="stTabs"] [role="tablist"] {
+        section[data-testid="stMain"] [data-testid="stTabs"] [role="tablist"] {
             position: static;
         }
     }
@@ -3199,8 +3192,8 @@ def render_roles(ve):
     )
 
     st.info(
-        "v0.8.4 verbessert die Ansicht mit fixierten Bereichsköpfen und "
-        "separaten Scrollbereichen. Die Anzeige ist keine "
+        "v0.8.5 verbessert die Ansicht mit getrennt scrollbaren "
+        "Struktur- und Registerinhalten. Die Anzeige ist keine "
         "vollständige Pflichtenbewertung; offene "
         "Tatbestände und Ausnahmen werden als "
         "Klärungsbedarf ausgewiesen."
@@ -5779,56 +5772,55 @@ with left:
 
 
 with right:
-    with st.container(key="detail_panel"):
-        selected = (
-            st.session_state.selected_object
+    selected = (
+        st.session_state.selected_object
+    )
+
+    if (
+        selected["type"]
+        == "company"
+    ):
+        render_company_detail()
+
+    elif (
+        selected["type"]
+        == "ve"
+    ):
+        ve = find_ve(
+            selected["id"]
         )
 
-        if (
-            selected["type"]
-            == "company"
-        ):
-            render_company_detail()
-
-        elif (
-            selected["type"]
-            == "ve"
-        ):
-            ve = find_ve(
-                selected["id"]
+        if ve:
+            render_ve_detail(
+                ve
             )
 
-            if ve:
-                render_ve_detail(
-                    ve
-                )
-
-            else:
-                st.error(
-                    "Verpackungseinheit nicht gefunden."
-                )
-
-        elif (
-            selected["type"]
-            == "pkg"
-        ):
-            ve, pkg = find_pkg(
-                selected["id"],
-                selected.get(
-                    "parent_id"
-                ),
+        else:
+            st.error(
+                "Verpackungseinheit nicht gefunden."
             )
 
-            if ve and pkg:
-                render_pkg_detail(
-                    ve,
-                    pkg,
-                )
+    elif (
+        selected["type"]
+        == "pkg"
+    ):
+        ve, pkg = find_pkg(
+            selected["id"],
+            selected.get(
+                "parent_id"
+            ),
+        )
 
-            else:
-                st.error(
-                    "Bestandteil nicht gefunden."
-                )
+        if ve and pkg:
+            render_pkg_detail(
+                ve,
+                pkg,
+            )
+
+        else:
+            st.error(
+                "Bestandteil nicht gefunden."
+            )
 
 
 # =========================================================

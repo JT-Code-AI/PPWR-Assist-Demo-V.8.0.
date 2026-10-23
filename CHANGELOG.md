@@ -1,5 +1,13 @@
 # Änderungen
 
+## v0.8.5
+
+- Zweispaltige Grundansicht wiederhergestellt; feste Höhenregeln für ganze Spalten entfernt.
+- Scrollbereich auf den Verpackungsbaum bzw. den aktiven Registerinhalt begrenzt.
+- Strukturkopf/Unternehmen sowie Detailüberschrift/Registerleiste bleiben außerhalb dieser Scrollbereiche sichtbar.
+- Schmale Ansichten behalten den normalen Seiten-Scroll.
+- Prüffall-Schema bleibt rückwärtskompatibel bei `0.8.2`.
+
 ## v0.8.4
 
 - Oberen Seitenabstand reduziert.

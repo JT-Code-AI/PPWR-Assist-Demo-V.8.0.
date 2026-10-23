@@ -1,4 +1,4 @@
-# PPWR-Assist v0.8.4
+# PPWR-Assist v0.8.5
 
 Streamlit-Prototyp für die Erfassung von Unternehmen und Verpackungen sowie die regelbasierte Ableitung von PPWR-Pflichten.
 
@@ -12,6 +12,15 @@ streamlit run app.py
 ```
 
 Unter Windows: `.venv\\Scripts\\activate`.
+
+## Änderungen in v0.8.5
+
+- Die zweispaltige Grundansicht bleibt unverändert.
+- Nur der Verpackungsbaum scrollt; „Struktur“ und „Unternehmen“ bleiben außerhalb des Scrollbereichs.
+- Nur der jeweilige Registerinhalt scrollt; Überschrift und Registerleiste bleiben darüber sichtbar.
+- Die vorherige feste Höhen-/Flex-Regel für ganze Seitencontainer wurde entfernt.
+- Auf schmalen Ansichten bleibt der normale Seiten-Scroll erhalten.
+- Datenformat bleibt kompatibel mit Schema-Version `0.8.2`.
 
 ## Änderungen in v0.8.4
 
