@@ -1,5 +1,11 @@
 # Änderungen
 
+## v0.8.8
+
+- Art.-21-Pflichten erhalten eine eigene Pflicht-ID und einen eigenständigen, bedingten Pflichttext; sie werden nicht mehr mit der allgemeinen Art.-15-Pflicht zusammengeführt.
+- Das Dokumentationsregister leitet die Art.-15-Nachweise auch aus der separaten Art.-21-Pflicht ab.
+- Prüffälle können Art.-15- und Art.-21-Pflichten getrennt bearbeiten und nachweisen.
+
 ## v0.8.7
 
 - VE-Löschen-Bereich in „Übersicht“ direkt unter „Grunddaten“ und vor „Bestandteile“ verschoben.

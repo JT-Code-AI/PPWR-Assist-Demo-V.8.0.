@@ -1,4 +1,4 @@
-# PPWR-Assist v0.8.7
+# PPWR-Assist v0.8.8
 
 Streamlit-Prototyp für die Erfassung von Unternehmen und Verpackungen sowie die regelbasierte Ableitung von PPWR-Pflichten.
 
@@ -12,6 +12,11 @@ streamlit run app.py
 ```
 
 Unter Windows: `.venv\\Scripts\\activate`.
+
+## Änderungen in v0.8.8
+
+- Art.-21-Pflichten werden mit eigenständigem Pflichttext und separater Pflicht-ID geführt, getrennt von der allgemeinen Erzeugerpflicht nach Art. 15.
+- Das Nachweisregister leitet die Art.-15-Dokumentation weiterhin aus dem Art.-21-Sonderpfad ab.
 
 ## Änderungen in v0.8.7
 
