@@ -1,4 +1,4 @@
-# PPWR-Assist v0.8.9
+# PPWR-Assist v0.8.10
 
 Streamlit-Prototyp für die Erfassung von Unternehmen und Verpackungen sowie die regelbasierte Ableitung von PPWR-Pflichten.
 
@@ -12,6 +12,15 @@ streamlit run app.py
 ```
 
 Unter Windows: `.venv\\Scripts\\activate`.
+
+## Änderungen in v0.8.10
+
+- Die Pflicht „Wiederverwendbarkeit der Verpackung“ enthält die Kriterien nach Art. 11 Abs. 1 Buchst. a–i und verlangt deren Nachweis in der technischen Dokumentation.
+- Die Art.-11-Kriterien gelten unabhängig von offenem oder geschlossenem Umlaufsystem; die Mindestzahl der Umläufe wird nicht vorweggenommen.
+- Systemteilnahme und Anforderungen nach Art. 26–27 und Anhang VI erscheinen als eigene Pflicht, auch wenn noch kein System zugeordnet wurde.
+- Offene und geschlossene Umlaufsysteme werden in der Systempflicht unterschieden. Bei offenen Systemen wird der Status eines Systembetreibers als Klärungspunkt ausgewiesen.
+- Das Dokumentationsregister leitet Verpackungs- und Systemnachweise getrennt ab.
+- Prüffall-Schema bleibt bei `0.8.2` und ist rückwärtskompatibel.
 
 ## Änderungen in v0.8.9
 

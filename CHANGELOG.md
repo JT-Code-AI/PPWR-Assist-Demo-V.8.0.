@@ -1,5 +1,14 @@
 # Änderungen
 
+## v0.8.10
+
+- Die Pflicht zur Wiederverwendbarkeit nach Art. 11 enthält jetzt die Kriterien aus Art. 11 Abs. 1 Buchst. a–i sowie den Nachweisbezug zur technischen Dokumentation.
+- Die Art.-11-Kriterien gelten ausdrücklich unabhängig von offenem oder geschlossenem Umlaufsystem; eine Mindestzahl an Umläufen wird nicht vorweggenommen.
+- Systemteilnahme und Systemanforderungen nach Art. 26–27 und Anhang VI werden als eigene Pflicht geführt, auch wenn noch kein System zugeordnet ist.
+- Die Systempflicht unterscheidet offene und geschlossene Umlaufsysteme und weist bei offenen Systemen auf die Klärung eines Systembetreibers hin.
+- „Dokumentation & Ausblick“ leitet Nachweise getrennt für Verpackungsanforderungen und Systemanforderungen ab.
+- Prüffall-Schema bleibt rückwärtskompatibel bei `0.8.2`.
+
 ## v0.8.9
 
 - Importierte Prüffälle ersetzen nun auch die Widget-Zustände des vorherigen Falls; Formularwerte werden mit einer neuen Widget-Generation geladen.
