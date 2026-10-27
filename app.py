@@ -44,12 +44,16 @@ from src.models import (
     PackagingComponent,
     MarketFlow,
     RoleAssessment,
-    ReuseSystem,
 )
 from src.serialization import case_from_json, case_to_json
 from src.import_state import install_imported_case
 from src.obligation_engine import build_register, WORK_STATUSES
 from src.documentation_register import build_documentation_register
+from src.reuse_systems import (
+    add_reuse_system,
+    delete_reuse_system,
+    sync_next_reuse_system_number,
+)
 from src.models import ObligationAssessment
 
 
@@ -4181,39 +4185,44 @@ def render_company_detail():
         st.subheader("Wiederverwendungssysteme")
         st.caption(
             "Systeme sind Hintergrundobjekte und können mehreren "
-            "Verpackungseinheiten zugeordnet werden. In dieser Version "
-            "werden nur Name und Systemart erfasst."
+            "Verpackungseinheiten zugeordnet werden. Beim Löschen wird die "
+            "Zuordnung in betroffenen Verpackungseinheiten entfernt; SYS-Nummern "
+            "werden nicht erneut vergeben."
         )
-        for system in company.reuse_systems:
-            system.name = st.text_input(
-                f"Systemname ({system.system_id})",
-                value=system.name,
-                key=f"reuse_system_name_{system.system_id}_v082",
-            )
-            system.system_type = st.selectbox(
-                f"Systemart ({system.system_id})",
-                options=["open", "closed", "clarification_required"],
-                index=["open", "closed", "clarification_required"].index(
-                    system.system_type
-                    if system.system_type in {"open", "closed", "clarification_required"}
-                    else "clarification_required"
-                ),
-                format_func=lambda value: {
-                    "open": "Offen",
-                    "closed": "Geschlossen",
-                    "clarification_required": "Klärung erforderlich",
-                }[value],
-                key=f"reuse_system_type_{system.system_id}_v082",
-            )
+        sync_next_reuse_system_number(company)
 
-        if st.button("Wiederverwendungssystem hinzufügen", key="add_reuse_system_v082"):
-            next_id = len(company.reuse_systems) + 1
-            used_ids = {item.system_id for item in company.reuse_systems}
-            while f"SYS-{next_id:03d}" in used_ids:
-                next_id += 1
-            company.reuse_systems.append(
-                ReuseSystem(system_id=f"SYS-{next_id:03d}")
-            )
+        for system in list(company.reuse_systems):
+            with st.container(border=True):
+                system_col, delete_col = st.columns([5, 1])
+                with system_col:
+                    system.name = st.text_input(
+                        f"Systemname ({system.system_id})",
+                        value=system.name,
+                        key=f"reuse_system_name_{system.system_id}_v082",
+                    )
+                    system.system_type = st.selectbox(
+                        f"Systemart ({system.system_id})",
+                        options=["open", "closed", "clarification_required"],
+                        index=["open", "closed", "clarification_required"].index(
+                            system.system_type
+                            if system.system_type in {"open", "closed", "clarification_required"}
+                            else "clarification_required"
+                        ),
+                        format_func=lambda value: {
+                            "open": "Offen",
+                            "closed": "Geschlossen",
+                            "clarification_required": "Klärung erforderlich",
+                        }[value],
+                        key=f"reuse_system_type_{system.system_id}_v082",
+                    )
+                with delete_col:
+                    st.write("")
+                    if st.button("Löschen", key=f"delete_reuse_system_{system.system_id}_v0811"):
+                        delete_reuse_system(company, system.system_id)
+                        st.rerun()
+
+        if st.button("Wiederverwendungssystem hinzufügen", key="add_reuse_system_v0811"):
+            add_reuse_system(company)
             st.rerun()
 
     with tab2:

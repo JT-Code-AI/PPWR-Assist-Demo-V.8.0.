@@ -1,5 +1,15 @@
 # Änderungen
 
+## v0.8.11
+
+- Art.-11-Pflichttext enthält die Kriterien nach Abs. 1 Buchst. a–i, den technischen Nachweisbezug und den zeitlichen Hinweis; das Inverkehrbringungsdatum wird nicht je Gebinde geprüft.
+- Anwendbarkeit des Art.-11-Prüfpfads und Bearbeitungsstatus werden getrennt dargestellt; Auslöserhinweise erscheinen nicht als fehlende Tatsachen oder Ausnahmen.
+- Die eigene Systempflicht beschreibt die Anforderungen aus Art. 26/27 und Anhang VI einschließlich Systemdefinition, technischer Dokumentation und schriftlicher Bestätigungen.
+- § 11 Nr. 1 VerpackDG ist als bedingte Ausnahme von der EPR-Systembeteiligung ergänzt: Ein bestehendes System muss tatsächliche Rücknahme und Wiederverwendung ermöglichen.
+- Wiederverwendungssysteme können auf Unternehmensebene gelöscht werden; betroffene VE-Zuordnungen werden entfernt.
+- SYS-Nummern laufen fort und werden nach dem Löschen nicht erneut vergeben; alte Prüffälle bleiben kompatibel.
+- Prüffall-Schema bleibt bei `0.8.2`.
+
 ## v0.8.10
 
 - Die Pflicht zur Wiederverwendbarkeit nach Art. 11 enthält jetzt die Kriterien aus Art. 11 Abs. 1 Buchst. a–i sowie den Nachweisbezug zur technischen Dokumentation.

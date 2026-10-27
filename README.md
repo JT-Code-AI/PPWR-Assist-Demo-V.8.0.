@@ -1,4 +1,4 @@
-# PPWR-Assist v0.8.10
+# PPWR-Assist v0.8.11
 
 Streamlit-Prototyp für die Erfassung von Unternehmen und Verpackungen sowie die regelbasierte Ableitung von PPWR-Pflichten.
 
@@ -12,6 +12,14 @@ streamlit run app.py
 ```
 
 Unter Windows: `.venv\\Scripts\\activate`.
+
+## Änderungen in v0.8.11
+
+- Art. 11 nennt die Kriterien für Wiederverwendbarkeit, den Zeitbezug und die Nachweise. Eine Einzelprüfung des Inverkehrbringungsdatums je Gebinde findet nicht statt.
+- Systemdefinition, Systemkonformität und Nachweise nach Art. 26/27 und Anhang VI sind in der separaten Systempflicht erfasst.
+- § 11 Nr. 1 VerpackDG ist als bedingte Ausnahme zur EPR-Systembeteiligung berücksichtigt.
+- Wiederverwendungssysteme können gelöscht werden. Ihre IDs bleiben reserviert; VE-Zuordnungen werden beim Löschen entfernt.
+- Das JSON-Schema bleibt rückwärtskompatibel bei `0.8.2`.
 
 ## Änderungen in v0.8.10
 
